@@ -3,8 +3,7 @@ import threading
 import paramiko
 from datetime import datetime
 
-HOST_KEY = paramiko.RSAKey.generate(2048)
-
+HOST_KEY = paramiko.RSAKey(filename="keys/server_rsa.key")
 
 class SSHHoneypot(paramiko.ServerInterface):
 
@@ -55,25 +54,35 @@ def start_server(host="127.0.0.1", port=2222):
     server_socket.bind((host, port))
     server_socket.listen(100)
 
+    # Prevent infinite blocking
+    server_socket.settimeout(1)
+
     print(f"[+] SSH Honeypot running on port {port}")
 
     try:
         while True:
+            try:
+                client_socket, address = server_socket.accept()
 
-            client_socket, address = server_socket.accept()
+                client_thread = threading.Thread(
+                    target=handle_connection,
+                    args=(client_socket, address)
+                )
 
-            client_thread = threading.Thread(
-                target=handle_connection,
-                args=(client_socket, address)
-            )
+                # Thread exits with main program
+                client_thread.daemon = True
 
-            client_thread.start()
+                client_thread.start()
+
+            except socket.timeout:
+                continue
 
     except KeyboardInterrupt:
         print("\n[!] Shutting down honeypot...")
 
     finally:
         server_socket.close()
+        print("[+] Socket closed.")
 
 
 if __name__ == "__main__":

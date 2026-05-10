@@ -47,7 +47,7 @@ def handle_connection(client_socket, address):
 
 
 def start_server(host="127.0.0.1", port=2222):
-
+  
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
     server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -57,16 +57,23 @@ def start_server(host="127.0.0.1", port=2222):
 
     print(f"[+] SSH Honeypot running on port {port}")
 
-    while True:
+    try:
+        while True:
 
-        client_socket, address = server_socket.accept()
+            client_socket, address = server_socket.accept()
 
-        client_thread = threading.Thread(
-            target=handle_connection,
-            args=(client_socket, address)
-        )
+            client_thread = threading.Thread(
+                target=handle_connection,
+                args=(client_socket, address)
+            )
 
-        client_thread.start()
+            client_thread.start()
+
+    except KeyboardInterrupt:
+        print("\n[!] Shutting down honeypot...")
+
+    finally:
+        server_socket.close()
 
 
 if __name__ == "__main__":

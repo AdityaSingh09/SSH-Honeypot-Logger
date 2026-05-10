@@ -1,0 +1,124 @@
+# =====================================================
+# SSH / Private / RSA keys - NEVER commit these
+# =====================================================
+
+# Common private key extensions
+*.key
+*.pem
+*.ppk
+*.pfx
+*.p12
+*.cer
+*.crt
+*.der
+*.asc
+*.gpg
+*.pgp
+
+# OpenSSH generated key files (no extension by default)
+id_rsa
+id_rsa.*
+id_dsa
+id_dsa.*
+id_ecdsa
+id_ecdsa.*
+id_ed25519
+id_ed25519.*
+id_xmss
+id_xmss.*
+
+# Server / host keys
+ssh_host_*_key
+ssh_host_*_key.pub
+known_hosts
+known_hosts.old
+authorized_keys
+
+# Project-specific keys directory (honeypot RSA host keys)
+Honey_pot/keys/
+keys/
+**/keys/*.key
+**/keys/*.pub
+**/*_rsa*
+**/*_dsa*
+**/*_ecdsa*
+**/*_ed25519*
+
+# Generic "private" / "secret" filenames
+*private*
+*secret*
+*.secret
+
+# =====================================================
+# Environment / secrets
+# =====================================================
+.env
+.env.*
+*.env
+config.local.*
+secrets.json
+secrets.yaml
+secrets.yml
+
+# =====================================================
+# Python
+# =====================================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Virtual environments
+venv/
+.venv/
+env/
+ENV/
+.Python
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+*.egg
+.eggs/
+pip-wheel-metadata/
+
+# Testing / coverage
+.pytest_cache/
+.tox/
+.coverage
+.coverage.*
+htmlcov/
+.cache/
+nosetests.xml
+coverage.xml
+
+# Type checkers
+.mypy_cache/
+.pyre/
+.pytype/
+.ruff_cache/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# =====================================================
+# Honeypot logs / runtime data
+# =====================================================
+logs/
+*.log
+*.log.*
+*.db
+*.sqlite
+*.sqlite3
+
+# =====================================================
+# IDE / editor
+# =====================================================
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db

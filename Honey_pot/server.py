@@ -3,16 +3,31 @@ import threading
 import paramiko
 from datetime import datetime
 
+from database import (
+    initialize_database,
+    log_login_attempt
+)
+
 HOST_KEY = paramiko.RSAKey(filename="keys/server_rsa.key")
 
 class SSHHoneypot(paramiko.ServerInterface):
+  
+    def __init__(self, client_ip):
+
+        self.client_ip = client_ip
 
     def check_auth_password(self, username, password):
 
         print("\n=== LOGIN ATTEMPT ===")
-        print(f"Time: {datetime.now()}")
         print(f"Username: {username}")
         print(f"Password: {password}")
+        print(f"IP Address: {self.client_ip}")
+
+        log_login_attempt(
+            self.client_ip,
+            username,
+            password
+        )
 
         return paramiko.AUTH_FAILED
 
@@ -27,7 +42,7 @@ def handle_connection(client_socket, address):
     transport = paramiko.Transport(client_socket)
     transport.add_server_key(HOST_KEY)
 
-    server = SSHHoneypot()
+    server = SSHHoneypot(address[0])
 
     try:
         transport.start_server(server=server)
@@ -86,4 +101,7 @@ def start_server(host="127.0.0.1", port=2222):
 
 
 if __name__ == "__main__":
+  
+    initialize_database()
+
     start_server()

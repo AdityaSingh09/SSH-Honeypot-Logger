@@ -1,7 +1,6 @@
 import socket
 import threading
 import paramiko
-from datetime import datetime
 
 from database import (
     initialize_database,
@@ -10,12 +9,19 @@ from database import (
 
 HOST_KEY = paramiko.RSAKey(filename="keys/server_rsa.key")
 
+
 class SSHHoneypot(paramiko.ServerInterface):
-  
+
     def __init__(self, client_ip):
 
         self.client_ip = client_ip
 
+        # Used for shell synchronization
+        self.event = threading.Event()
+
+    def check_channel_exec_request(self, channel, command):
+      return False
+    
     def check_auth_password(self, username, password):
 
         print("\n=== LOGIN ATTEMPT ===")
@@ -29,10 +35,36 @@ class SSHHoneypot(paramiko.ServerInterface):
             password
         )
 
-        return paramiko.AUTH_FAILED
+        return paramiko.AUTH_SUCCESSFUL
 
     def get_allowed_auths(self, username):
         return "password"
+
+    def check_channel_request(self, kind, chanid):
+
+        if kind == "session":
+            return paramiko.OPEN_SUCCEEDED
+
+        return paramiko.OPEN_FAILED_ADMINISTRATIVELY_PROHIBITED
+
+    def check_channel_pty_request(
+        self,
+        channel,
+        term,
+        width,
+        height,
+        pixelwidth,
+        pixelheight,
+        modes
+    ):
+        return True
+
+    def check_channel_shell_request(self, channel):
+
+        # Signal that shell request succeeded
+        self.event.set()
+
+        return True
 
 
 def handle_connection(client_socket, address):
@@ -40,11 +72,13 @@ def handle_connection(client_socket, address):
     print(f"\n[+] Connection received from {address[0]}")
 
     transport = paramiko.Transport(client_socket)
+
     transport.add_server_key(HOST_KEY)
 
     server = SSHHoneypot(address[0])
 
     try:
+
         transport.start_server(server=server)
 
         channel = transport.accept(20)
@@ -53,30 +87,100 @@ def handle_connection(client_socket, address):
             print("[-] No channel opened.")
             return
 
+        print("[+] Waiting for shell request...")
+
+        server.event.wait(10)
+
+        if not server.event.is_set():
+            print("[-] No shell request received.")
+            return
+
+        print("[+] Interactive shell opened.")
+
+        channel.send("\r\n")
+        channel.send("Welcome to Ubuntu 22.04 LTS\r\n")
+        channel.send("admin@honeypot:~$ ")
+
+        while True:
+
+            command = channel.recv(1024).decode("utf-8").strip()
+
+            if not command:
+                continue
+
+            print(f"[COMMAND] {command}")
+
+            if command == "exit":
+
+                channel.send("logout\r\n")
+
+                break
+
+            elif command == "ls":
+
+                response = "Documents Downloads secrets.txt\r\n"
+
+            elif command == "pwd":
+
+                response = "/home/admin\r\n"
+
+            elif command == "whoami":
+
+                response = "admin\r\n"
+
+            elif command == "uname -a":
+
+                response = (
+                    "Linux ubuntu-server "
+                    "5.15.0-91-generic "
+                    "x86_64 GNU/Linux\r\n"
+                )
+
+            else:
+
+                response = f"{command}: command not found\r\n"
+
+            channel.send(response)
+
+            channel.send("admin@honeypot:~$ ")
+
     except Exception as e:
+
         print(f"[-] Error: {e}")
 
     finally:
+
         transport.close()
 
 
 def start_server(host="127.0.0.1", port=2222):
-  
-    server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
-    server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    server_socket = socket.socket(
+        socket.AF_INET,
+        socket.SOCK_STREAM
+    )
+
+    server_socket.setsockopt(
+        socket.SOL_SOCKET,
+        socket.SO_REUSEADDR,
+        1
+    )
 
     server_socket.bind((host, port))
+
     server_socket.listen(100)
 
-    # Prevent infinite blocking
+    # Prevent blocking forever
     server_socket.settimeout(1)
 
     print(f"[+] SSH Honeypot running on port {port}")
 
     try:
+
         while True:
+
             try:
+
                 client_socket, address = server_socket.accept()
 
                 client_thread = threading.Thread(
@@ -84,7 +188,6 @@ def start_server(host="127.0.0.1", port=2222):
                     args=(client_socket, address)
                 )
 
-                # Thread exits with main program
                 client_thread.daemon = True
 
                 client_thread.start()
@@ -93,15 +196,18 @@ def start_server(host="127.0.0.1", port=2222):
                 continue
 
     except KeyboardInterrupt:
+
         print("\n[!] Shutting down honeypot...")
 
     finally:
+
         server_socket.close()
+
         print("[+] Socket closed.")
 
 
 if __name__ == "__main__":
-  
+
     initialize_database()
 
     start_server()

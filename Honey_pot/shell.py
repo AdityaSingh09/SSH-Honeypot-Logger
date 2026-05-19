@@ -1,64 +1,137 @@
-def handle_command(command):
+class FakeShell:
   
-    command = command.strip()
+    def __init__(self):
 
-    if command == "ls":
+        # Initial shell state
+        self.current_directory = "/home/admin"
 
-        return (
-            "Documents  Downloads  secrets.txt\r\n"
-        )
+        self.history = []
 
-    elif command == "pwd":
+        # Fake filesystem
+        self.filesystem = {
+            "/home/admin": [
+                "Documents",
+                "Downloads",
+                "secrets.txt"
+            ],
 
-        return "/home/admin\r\n"
+            "/home/admin/Documents": [
+                "notes.txt",
+                "work"
+            ],
 
-    elif command == "whoami":
+            "/home/admin/Downloads": [
+                "backup.zip"
+            ]
+        }
 
-        return "admin\r\n"
+    def get_prompt(self):
 
-    elif command == "uname -a":
+        return f"admin@honeypot:{self.current_directory}$ "
 
-        return (
-            "Linux ubuntu-server "
-            "5.15.0-91-generic "
-            "x86_64 GNU/Linux\r\n"
-        )
+    def handle_command(self, command):
 
-    elif command == "id":
+        command = command.strip()
 
-        return (
-            "uid=1000(admin) "
-            "gid=1000(admin) "
-            "groups=1000(admin)\r\n"
-        )
+        self.history.append(command)
 
-    elif command == "cat /etc/passwd":
+        # EXIT
+        if command == "exit":
 
-        return (
-            "root:x:0:0:root:/root:/bin/bash\r\n"
-            "admin:x:1000:1000:admin:/home/admin:/bin/bash\r\n"
-        )
+            return "logout\r\n"
 
-    elif command == "ps aux":
+        # PWD
+        elif command == "pwd":
 
-        return (
-            "root       1  0.0  0.1  22568  4108 ?        Ss   08:00   0:01 init\r\n"
-            "root     532  0.0  0.2  54000  8200 ?        Ss   08:01   0:00 sshd\r\n"
-            "admin   1042  0.1  0.3  72000 12000 pts/0    S+   08:10   0:00 bash\r\n"
-        )
+            return f"{self.current_directory}\r\n"
 
-    elif command == "history":
+        # WHOAMI
+        elif command == "whoami":
 
-        return (
-            "1 ls\r\n"
-            "2 pwd\r\n"
-            "3 whoami\r\n"
-        )
+            return "admin\r\n"
 
-    elif command == "exit":
+        # UNAME
+        elif command == "uname -a":
 
-        return "logout\r\n"
+            return (
+                "Linux ubuntu-server "
+                "5.15.0-91-generic "
+                "x86_64 GNU/Linux\r\n"
+            )
 
-    else:
+        # ID
+        elif command == "id":
+
+            return (
+                "uid=1000(admin) "
+                "gid=1000(admin) "
+                "groups=1000(admin)\r\n"
+            )
+
+        # LS
+        elif command == "ls":
+
+            files = self.filesystem.get(
+                self.current_directory,
+                []
+            )
+
+            return "  ".join(files) + "\r\n"
+
+        # CD
+        elif command.startswith("cd "):
+
+            target = command[3:].strip()
+
+            if target == "..":
+
+                if self.current_directory != "/home/admin":
+
+                    self.current_directory = "/".join(
+                        self.current_directory.split("/")[:-1]
+                    )
+
+                    if self.current_directory == "":
+                        self.current_directory = "/"
+
+                return ""
+
+            new_path = f"{self.current_directory}/{target}"
+
+            if new_path in self.filesystem:
+
+                self.current_directory = new_path
+
+                return ""
+
+            return f"cd: no such file or directory: {target}\r\n"
+
+        # HISTORY
+        elif command == "history":
+
+            output = ""
+
+            for index, cmd in enumerate(self.history, start=1):
+
+                output += f"{index} {cmd}\r\n"
+
+            return output
+
+        # CAT PASSWD
+        elif command == "cat /etc/passwd":
+
+            return (
+                "root:x:0:0:root:/root:/bin/bash\r\n"
+                "admin:x:1000:1000:admin:/home/admin:/bin/bash\r\n"
+            )
+
+        # PS
+        elif command == "ps aux":
+
+            return (
+                "root       1  0.0  0.1  22568  4108 ?        Ss   08:00   0:01 init\r\n"
+                "root     532  0.0  0.2  54000  8200 ?        Ss   08:01   0:00 sshd\r\n"
+                "admin   1042  0.1  0.3  72000 12000 pts/0    S+   08:10   0:00 bash\r\n"
+            )
 
         return f"{command}: command not found\r\n"

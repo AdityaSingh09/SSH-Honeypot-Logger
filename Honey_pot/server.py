@@ -1,7 +1,7 @@
 import socket
 import threading
 import paramiko
-from shell import handle_command
+from shell import FakeShell
 from database import (
     initialize_database,
     log_login_attempt
@@ -96,12 +96,16 @@ def handle_connection(client_socket, address):
             return
 
         print("[+] Interactive shell opened.")
+        
+        # Create a new shell instance for this connection
+        shell = FakeShell()
 
         channel.send("\r\n")
         channel.send("Welcome to Ubuntu 22.04 LTS\r\n")
-        channel.send("admin@honeypot:~$ ")
+        channel.send(shell.get_prompt())
 
         while True: 
+            
             buffer = ""
 
             while True:
@@ -110,7 +114,7 @@ def handle_connection(client_socket, address):
 
                 if not data:
                     break
-
+                channel.send(data)
                 buffer += data
 
                 # Wait until Enter key
@@ -122,19 +126,19 @@ def handle_connection(client_socket, address):
                 buffer = ""
 
                 if not command:
-                    channel.send("admin@honeypot:~$ ")
+                    channel.send(shell.get_prompt())
                     continue
 
                 print(f"[COMMAND] {command}")
 
-                response = handle_command(command)
+                response = shell.handle_command(command)
 
                 channel.send(response)
 
                 if command == "exit":
                     break
 
-                channel.send("admin@honeypot:~$ ")
+                channel.send(shell.get_prompt())
 
     except Exception as e:
 

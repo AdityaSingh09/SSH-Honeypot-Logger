@@ -1,7 +1,7 @@
 import socket
 import threading
 import paramiko
-
+from shell import handle_command
 from database import (
     initialize_database,
     log_login_attempt
@@ -101,48 +101,40 @@ def handle_connection(client_socket, address):
         channel.send("Welcome to Ubuntu 22.04 LTS\r\n")
         channel.send("admin@honeypot:~$ ")
 
-        while True:
+        while True: 
+            buffer = ""
 
-            command = channel.recv(1024).decode("utf-8").strip()
+            while True:
 
-            if not command:
-                continue
+                data = channel.recv(1024).decode("utf-8")
 
-            print(f"[COMMAND] {command}")
+                if not data:
+                    break
 
-            if command == "exit":
+                buffer += data
 
-                channel.send("logout\r\n")
+                # Wait until Enter key
+                if "\r" not in buffer and "\n" not in buffer:
+                    continue
 
-                break
+                command = buffer.strip()
 
-            elif command == "ls":
+                buffer = ""
 
-                response = "Documents Downloads secrets.txt\r\n"
+                if not command:
+                    channel.send("admin@honeypot:~$ ")
+                    continue
 
-            elif command == "pwd":
+                print(f"[COMMAND] {command}")
 
-                response = "/home/admin\r\n"
+                response = handle_command(command)
 
-            elif command == "whoami":
+                channel.send(response)
 
-                response = "admin\r\n"
+                if command == "exit":
+                    break
 
-            elif command == "uname -a":
-
-                response = (
-                    "Linux ubuntu-server "
-                    "5.15.0-91-generic "
-                    "x86_64 GNU/Linux\r\n"
-                )
-
-            else:
-
-                response = f"{command}: command not found\r\n"
-
-            channel.send(response)
-
-            channel.send("admin@honeypot:~$ ")
+                channel.send("admin@honeypot:~$ ")
 
     except Exception as e:
 

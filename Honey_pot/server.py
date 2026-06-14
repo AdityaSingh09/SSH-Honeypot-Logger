@@ -1,10 +1,14 @@
 import socket
 import threading
 import paramiko
+import uuid
+from datetime import datetime
 from shell import FakeShell
 from database import (
     initialize_database,
-    log_login_attempt
+    log_login_attempt,
+    create_session,
+    close_session
 )
 
 HOST_KEY = paramiko.RSAKey(filename="keys/server_rsa.key")
@@ -66,10 +70,27 @@ class SSHHoneypot(paramiko.ServerInterface):
 
         return True
 
-
+# Handle the connection and create a new session for session telemerty 
 def handle_connection(client_socket, address):
 
     print(f"\n[+] Connection received from {address[0]}")
+    
+    session_id = str(uuid.uuid4())
+
+    start_time = datetime.now().strftime(
+        "%Y-%m-%d %H:%M:%S"
+    )
+
+    create_session(
+        session_id,
+        address[0],
+        start_time
+    )
+
+    print(
+        f"[SESSION START] "
+        f"{session_id}"
+    )
 
     transport = paramiko.Transport(client_socket)
 
@@ -103,48 +124,63 @@ def handle_connection(client_socket, address):
         channel.send("\r\n")
         channel.send("Welcome to Ubuntu 22.04 LTS\r\n")
         channel.send(shell.get_prompt())
+        
+        
+        buffer = ""
 
-        while True: 
-            
+        while True:
+
+            data = channel.recv(1024).decode("utf-8")
+
+            if not data:
+                break
+            channel.send(data)
+            buffer += data
+
+            # Wait until Enter key
+            if "\r" not in buffer and "\n" not in buffer:
+                continue
+
+            command = buffer.strip()
+
             buffer = ""
 
-            while True:
-
-                data = channel.recv(1024).decode("utf-8")
-
-                if not data:
-                    break
-                channel.send(data)
-                buffer += data
-
-                # Wait until Enter key
-                if "\r" not in buffer and "\n" not in buffer:
-                    continue
-
-                command = buffer.strip()
-
-                buffer = ""
-
-                if not command:
-                    channel.send(shell.get_prompt())
-                    continue
-
-                print(f"[COMMAND] {command}")
-
-                response = shell.handle_command(command)
-
-                channel.send(response)
-
-                if command == "exit":
-                    break
-
+            if not command:
                 channel.send(shell.get_prompt())
+                continue
+
+            print(f"[COMMAND] {command}")
+
+            response = shell.handle_command(command)
+
+            channel.send(response)
+
+            if command == "exit":
+                break
+
+            channel.send(shell.get_prompt())
+
+            
+            
 
     except Exception as e:
 
         print(f"[-] Error: {e}")
 
     finally:
+        end_time = datetime.now().strftime(
+        "%Y-%m-%d %H:%M:%S"
+        )
+
+        close_session(
+            session_id,
+            end_time
+        )
+
+        print(
+            f"[SESSION END] "
+            f"{session_id}"
+        )
 
         transport.close()
 

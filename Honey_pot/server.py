@@ -11,6 +11,8 @@ from database import (
     close_session,
     log_command
 )
+from logger import generate_event, print_event
+
 
 HOST_KEY = paramiko.RSAKey(filename="keys/server_rsa.key")
 
@@ -92,6 +94,13 @@ def handle_connection(client_socket, address):
         f"[SESSION START] "
         f"{session_id}"
     )
+    event = generate_event(
+        category="SESSION",
+        event_type="session_started",
+        session_id=session_id,
+        source_ip=address[0]
+    )
+    print_event(event)
 
     transport = paramiko.Transport(client_socket)
 
@@ -152,12 +161,13 @@ def handle_connection(client_socket, address):
 
             print(f"[COMMAND] {command}")
 
-            response = shell.handle_command(command)
+            
             log_command(
                 session_id,
                 command,
                 shell.current_directory
             )
+            response = shell.handle_command(command)
 
             channel.send(response)
 

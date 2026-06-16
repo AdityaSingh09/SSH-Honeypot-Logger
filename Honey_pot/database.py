@@ -28,6 +28,16 @@ def initialize_database():
             status TEXT
     )
 """)
+    
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS commands (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        session_id TEXT,
+        timestamp TEXT,
+        command TEXT,
+        working_directory TEXT
+    )
+""")
 
     connection.commit()
 
@@ -109,6 +119,49 @@ def close_session(
         end_time,
         "CLOSED",
         session_id
+    ))
+
+    connection.commit()
+
+    connection.close()
+    
+    
+def log_command(
+    session_id,
+    command,
+    working_directory
+):
+
+    connection = sqlite3.connect(
+        DATABASE_NAME
+    )
+
+    cursor = connection.cursor()
+
+    timestamp = datetime.now().strftime(
+        "%Y-%m-%d %H:%M:%S"
+    )
+
+    cursor.execute("""
+        INSERT INTO commands (
+            session_id,
+            timestamp,
+            command,
+            working_directory
+        )
+
+        VALUES (?, ?, ?, ?)
+
+    """, (
+
+        session_id,
+
+        timestamp,
+
+        command,
+
+        working_directory
+
     ))
 
     connection.commit()

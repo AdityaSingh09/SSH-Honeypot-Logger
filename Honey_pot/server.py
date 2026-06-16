@@ -8,7 +8,8 @@ from database import (
     initialize_database,
     log_login_attempt,
     create_session,
-    close_session
+    close_session,
+    log_command
 )
 
 HOST_KEY = paramiko.RSAKey(filename="keys/server_rsa.key")
@@ -152,6 +153,11 @@ def handle_connection(client_socket, address):
             print(f"[COMMAND] {command}")
 
             response = shell.handle_command(command)
+            log_command(
+                session_id,
+                command,
+                shell.current_directory
+            )
 
             channel.send(response)
 

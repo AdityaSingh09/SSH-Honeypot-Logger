@@ -7,6 +7,34 @@ class FakeShell:
 
         self.history = []
 
+        self.file_contents = {
+             "notes.txt": (
+                "Meeting Notes\n"
+                "-------------\n"
+                "- Rotate AWS keys next month\n"
+                "- Verify backup jobs\n"
+                "- Finish migration docs\n"
+            ),
+
+            "secrets.txt": (
+                "# Internal Credentials\n"
+                "db_user=backup_service\n"
+                "db_host=10.0.0.15\n"
+                "api_key=REDACTED_4f3a8b2\n"
+            ),
+
+            "backup.zip": (
+                "Archive: backup.zip\n"
+                "\n"
+                "Length      Name\n"
+                "------      ----------------\n"
+                "2048        customers.csv\n"
+                "1024        server.conf\n"
+                "512         old_passwords.txt\n"
+            )
+
+        }
+        
         # Fake filesystem
         self.filesystem = {
             "/home/admin": [
@@ -32,6 +60,8 @@ class FakeShell:
     def handle_command(self, command):
 
         command = command.strip()
+        if not command:
+            return ""
 
         self.history.append(command)
 
@@ -124,8 +154,17 @@ class FakeShell:
                 "root:x:0:0:root:/root:/bin/bash\r\n"
                 "admin:x:1000:1000:admin:/home/admin:/bin/bash\r\n"
             )
+        # CAT FILES
+        elif command.startswith("cat "):
 
-        # PS
+            filename = command[4:].strip()
+
+            if filename in self.file_contents:
+
+                return self.file_contents[filename] + "\r\n"
+
+            return f"cat: {filename}: No such file or directory\r\n"
+                # PS
         elif command == "ps aux":
 
             return (

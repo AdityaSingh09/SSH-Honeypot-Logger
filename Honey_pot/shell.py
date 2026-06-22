@@ -7,8 +7,15 @@ class FakeShell:
 
         self.history = []
 
+        self.server_info = {
+            "hostname": "ubuntu-server",
+            "ip_address": "10.0.0.15"
+        }
+
+        # Fake file contents
         self.file_contents = {
-             "notes.txt": (
+
+            "notes.txt": (
                 "Meeting Notes\n"
                 "-------------\n"
                 "- Rotate AWS keys next month\n"
@@ -19,7 +26,7 @@ class FakeShell:
             "secrets.txt": (
                 "# Internal Credentials\n"
                 "db_user=backup_service\n"
-                "db_host=10.0.0.15\n"
+                f"db_host={self.server_info['ip_address']}\n"
                 "api_key=REDACTED_4f3a8b2\n"
             ),
 
@@ -32,11 +39,11 @@ class FakeShell:
                 "1024        server.conf\n"
                 "512         old_passwords.txt\n"
             )
-
         }
-        
+
         # Fake filesystem
         self.filesystem = {
+
             "/home/admin": [
                 "Documents",
                 "Downloads",
@@ -60,6 +67,7 @@ class FakeShell:
     def handle_command(self, command):
 
         command = command.strip()
+
         if not command:
             return ""
 
@@ -84,7 +92,7 @@ class FakeShell:
         elif command == "uname -a":
 
             return (
-                "Linux ubuntu-server "
+                f"Linux {self.server_info['hostname']} "
                 "5.15.0-91-generic "
                 "x86_64 GNU/Linux\r\n"
             )
@@ -96,6 +104,28 @@ class FakeShell:
                 "uid=1000(admin) "
                 "gid=1000(admin) "
                 "groups=1000(admin)\r\n"
+            )
+
+        # SUDO
+        elif command == "sudo -l":
+
+            return (
+                f"Matching Defaults entries for admin on "
+                f"{self.server_info['hostname']}:\r\n"
+
+                "    env_reset, mail_badpass,\r\n"
+
+                "    secure_path=/usr/local/sbin:/usr/local/bin:"
+                "/usr/sbin:/usr/bin:/sbin:/bin\r\n"
+
+                "\r\n"
+
+                f"User admin may run the following commands "
+                f"on {self.server_info['hostname']}:\r\n"
+
+                "    (ALL) NOPASSWD: /usr/bin/systemctl\r\n"
+
+                "    (ALL) NOPASSWD: /usr/bin/journalctl\r\n"
             )
 
         # LS
@@ -122,6 +152,7 @@ class FakeShell:
                     )
 
                     if self.current_directory == "":
+
                         self.current_directory = "/"
 
                 return ""
@@ -134,16 +165,24 @@ class FakeShell:
 
                 return ""
 
-            return f"cd: no such file or directory: {target}\r\n"
+            return (
+                f"cd: no such file or directory: "
+                f"{target}\r\n"
+            )
 
         # HISTORY
         elif command == "history":
 
             output = ""
 
-            for index, cmd in enumerate(self.history, start=1):
+            for index, cmd in enumerate(
+                self.history,
+                start=1
+            ):
 
-                output += f"{index} {cmd}\r\n"
+                output += (
+                    f"{index} {cmd}\r\n"
+                )
 
             return output
 
@@ -152,8 +191,11 @@ class FakeShell:
 
             return (
                 "root:x:0:0:root:/root:/bin/bash\r\n"
-                "admin:x:1000:1000:admin:/home/admin:/bin/bash\r\n"
+
+                "admin:x:1000:1000:admin:"
+                "/home/admin:/bin/bash\r\n"
             )
+
         # CAT FILES
         elif command.startswith("cat "):
 
@@ -161,16 +203,74 @@ class FakeShell:
 
             if filename in self.file_contents:
 
-                return self.file_contents[filename] + "\r\n"
+                return (
+                    self.file_contents[filename]
+                    + "\r\n"
+                )
 
-            return f"cat: {filename}: No such file or directory\r\n"
-                # PS
+            return (
+                f"cat: {filename}: "
+                f"No such file or directory\r\n"
+            )
+
+        # PS
         elif command == "ps aux":
 
             return (
-                "root       1  0.0  0.1  22568  4108 ?        Ss   08:00   0:01 init\r\n"
-                "root     532  0.0  0.2  54000  8200 ?        Ss   08:01   0:00 sshd\r\n"
-                "admin   1042  0.1  0.3  72000 12000 pts/0    S+   08:10   0:00 bash\r\n"
+                "root       1  0.0  0.1 "
+                "22568  4108 ?        "
+                "Ss   08:00   0:01 init\r\n"
+
+                "root     532  0.0  0.2 "
+                "54000  8200 ?        "
+                "Ss   08:01   0:00 sshd\r\n"
+
+                "admin   1042  0.1  0.3 "
+                "72000 12000 pts/0    "
+                "S+   08:10   0:00 bash\r\n"
             )
 
-        return f"{command}: command not found\r\n"
+        # IFCONFIG
+        elif command == "ifconfig":
+
+            return (
+                "eth0: flags=4163"
+                "<UP,BROADCAST,RUNNING,MULTICAST>\r\n"
+
+                f"    inet {self.server_info['ip_address']} "
+                "netmask 255.255.255.0\r\n"
+
+                "    ether 08:00:27:12:34:56\r\n"
+            )
+
+        # IP A
+        elif command == "ip a":
+
+            return (
+                "2: eth0: "
+                "<BROADCAST,MULTICAST,UP,LOWER_UP>\r\n"
+
+                f"    inet "
+                f"{self.server_info['ip_address']}/24\r\n"
+
+                "3: lo: <LOOPBACK,UP>\r\n"
+
+                "    inet 127.0.0.1/8\r\n"
+            )
+
+        # NETSTAT
+        elif command == "netstat":
+
+            return (
+                "Proto Local Address      State\r\n"
+
+                "tcp   0.0.0.0:22         LISTEN\r\n"
+
+                "tcp   0.0.0.0:80         LISTEN\r\n"
+
+                "tcp   0.0.0.0:443        LISTEN\r\n"
+            )
+
+        return (
+            f"{command}: command not found\r\n"
+        )

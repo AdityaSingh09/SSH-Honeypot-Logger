@@ -192,6 +192,19 @@ def handle_connection(client_socket, address):
             session_id,
             end_time
         )
+        event = generate_event(
+
+            category="SESSION",
+
+            event_type="session_ended",
+
+            session_id=session_id,
+
+            source_ip=address[0]
+
+        )
+
+        print_event(event)       
 
         print(
             f"[SESSION END] "
@@ -200,7 +213,7 @@ def handle_connection(client_socket, address):
 
         transport.close()
 
-
+       
 def start_server(host="127.0.0.1", port=2222):
 
     server_socket = socket.socket(

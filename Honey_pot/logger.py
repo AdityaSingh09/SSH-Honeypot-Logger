@@ -11,14 +11,19 @@ def generate_event(
     password=None,
     command=None,
     working_directory=None,
-    message=None
+    message=None,
+    severity="INFO",
+    source="honeypot"
 ):
 
     event = {
+        
+        
+        "severity": severity,
+        
+        "source": source,
 
-        "timestamp": datetime.now().strftime(
-            "%Y-%m-%d %H:%M:%S"
-        ),
+        "timestamp": datetime.now().isoformat(),
 
         "category": category,
 
@@ -36,10 +41,9 @@ def generate_event(
 
         "working_directory": working_directory,
 
-        "message": message
+        "message": message,
         
-        
-
+   
     }
 
     return event
@@ -47,8 +51,5 @@ def generate_event(
 def print_event(event):
   
     print(
-        json.dumps(
-            event,
-            indent=4
-        )
+        json.dumps(event)
     )

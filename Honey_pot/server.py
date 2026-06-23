@@ -41,7 +41,25 @@ class SSHHoneypot(paramiko.ServerInterface):
             username,
             password
         )
+        event = generate_event(
 
+            category="AUTH",
+
+            event_type="AUTH_ATTEMPT",
+
+            source_ip=self.client_ip,
+
+            username=username,
+
+            password=password,
+            
+            severity="LOW",
+
+            message="Authentication attempt received"
+
+        )
+
+        print_event(event)
         return paramiko.AUTH_SUCCESSFUL
 
     def get_allowed_auths(self, username):
@@ -96,9 +114,11 @@ def handle_connection(client_socket, address):
     )
     event = generate_event(
         category="SESSION",
-        event_type="session_started",
+        event_type="SESSION_STARTED",
         session_id=session_id,
-        source_ip=address[0]
+        source_ip=address[0],
+        severity="INFO",
+        message="Attacker session established"
     )
     print_event(event)
 
@@ -167,7 +187,31 @@ def handle_connection(client_socket, address):
                 command,
                 shell.current_directory
             )
+            
             response = shell.handle_command(command)
+            
+            event = generate_event(
+
+                category="COMMAND",
+
+                event_type="COMMAND_EXECUTED",
+
+                session_id=session_id,
+
+                source_ip=address[0],
+
+                command=command,
+
+                working_directory=shell.current_directory,
+                
+                severity="INFO",
+
+                message="Command executed"
+
+            )
+
+            print_event(event)
+            
 
             channel.send(response)
 
@@ -196,11 +240,15 @@ def handle_connection(client_socket, address):
 
             category="SESSION",
 
-            event_type="session_ended",
+            event_type="SESSION_ENDED",
 
             session_id=session_id,
 
-            source_ip=address[0]
+            source_ip=address[0],
+            
+            severity="INFO",
+            
+            message="Attacker session terminated"
 
         )
 
